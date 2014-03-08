@@ -1,0 +1,23 @@
+{
+  "name": "fingerprint",
+  "version": "0.5.0",
+  "main": [
+    "fingerprint.js",
+    "fingerprint.min.js"
+  ],
+  "ignore": [
+    ".travis.yml",
+    "specs"
+  ],
+  "homepage": "https://github.com/Valve/fingerprintjs",
+  "_release": "0.5.0",
+  "_resolution": {
+    "type": "version",
+    "tag": "v0.5.0",
+    "commit": "0bf57b7cf0f4a661206f63d7335efdc4a10a62a6"
+  },
+  "_source": "git://github.com/Valve/fingerprintjs.git",
+  "_target": "~0.5.0",
+  "_originalSource": "fingerprint",
+  "_direct": true
+}

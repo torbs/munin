@@ -1,0 +1,37 @@
+<!DOCTYPE html>
+<html>
+	<head>
+		<title>Munin tests</title>
+		<link rel="stylesheet" href="../lib/external/mocha.css"/>
+	</head>
+	<body>
+		<div id="mocha"></div>
+		<div id="output"></div>
+
+		<script type="text/javascript" src="../lib/polyfills/es6.js"></script>
+		<script type="text/javascript" src="../lib/polyfills/objectPolyfills.js"></script>
+		<script type="text/javascript" src="../lib/external/mocha/mocha.js"></script>
+		<script type="text/javascript" src="../bower_components/expect/expect.js"></script>
+		<script type="text/javascript" src="../bower_components/loglevel/dist/loglevel.js"></script>
+		<script type="text/javascript" src="../lib/external/requirejs/require.js"></script>
+		
+		<script type="text/javascript">
+			mocha.setup('bdd');
+
+			//window.expect = chai.expect;    
+			//window.assert = chai.assert; 
+			require(['spec/tortem.spec'], function () {
+				mocha.run();
+			});
+		</script>
+		<!--script type="text/javascript" src="../bower_components/fingerprint/fingerprint.min.js"></script>
+		<script type="text/javascript" src="../munin.js"></script>
+		<script type="text/javascript" src="../lib/fingerprint.js"></script>
+		<script type="text/javascript" src="../lib/beacon.js"></script>
+		<script type="text/javascript" src="../lib/socket.js"></script>
+		<script type="text/javascript" src="../lib/cookies.js"></script>
+		<script type="text/javascript" src="../lib/clientInfo.js"></script>
+		<script type="text/javascript" src="../lib/timing.js"></script>
+		<script type="text/javascript" src="../main.js"></script-->
+	</body>
+</html>
