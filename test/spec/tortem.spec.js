@@ -1,5 +1,6 @@
 define([
 	'../../lib/tortem/tokenizer',
+	'../../lib/tortem/objObserver',
 	'../../lib/tortem/context2',
 	'../../lib/tortem/jsonpath',
 	'../../lib/polyfills/arrayPolyfills',
@@ -7,7 +8,7 @@ define([
 	'../../lib/tortem',
 	'../../lib/tortem/ietortem',
 	'../../lib/tortem/loglevel'
-], function (Tokenizer, Context, jsonpath, addPolyfills, model, Tortem, IETortem, log) {
+], function (Tokenizer, objObserver, Context, jsonpath, addPolyfills, model, Tortem, IETortem, log) {
 	'use strict';
 	var tortem;
 
@@ -90,6 +91,44 @@ define([
 	});
 */
 
+	describe('objectObserver', function () {
+		it('should fire a callback when a value is pushed on an array', function (done) {
+			var a = [];
+			objObserver(a, function (prop, val) {
+				if (val === 'test' && prop === 0) {
+					done();
+				} else {
+					done(new Error());
+				}
+			});
+			a.push('test');
+		});
+
+		it('should fire a callback when a value is popped off an array', function (done) {
+			var a = [1,2];
+			objObserver(a, function (prop, val) {
+				if (prop === 1) {
+					done();
+				} else {
+					done(new Error());
+				}
+			});
+			a.pop();
+		});
+
+		it('should fire a callback when a property is added to an object', function (done) {
+			var a = {};
+			objObserver(a, function (prop, value) {
+				if (prop === 'test' && value === true) {
+					done();
+				} else {
+					done(new Error());
+				}
+			});
+			a.test = true;
+		});
+	});
+
 	describe('JSONPath', function () {
 		it('should resolve a string path to an object path', function () {
 			expect(jsonpath.resolve(jsonpathTestObject, 'a/b/c/0').match).to.equal('a/b/c/0');
@@ -169,15 +208,22 @@ define([
 				b = document.createElement('div'),
 				c = '<div id="contextTest" data-method="text:test"></div>';
 
-		it('should render a template', function() {
+		it('should render a template', function(done) {
 			c2 = new Context(a);
 			c2.addTemplate(c);
 			c2.renderTo(b);
-			expect(b.getElementsByTagName('div')[0].innerHTML).to.equal('test');
+			
+			setTimeout(function () {
+				expect(b.getElementsByTagName('div')[0].innerHTML).to.equal('test');
+				done();
+			}, 200);
 		});
-		it('should change the content of the element when the model changes', function () {
+		it('should change the content of the element when the model changes', function (done) {
 			c2.model.test = 'test2';
-			expect(b.getElementsByTagName('div')[0].innerHTML).to.equal('test2');
+			setTimeout(function () {
+				expect(b.getElementsByTagName('div')[0].innerHTML).to.equal('test2');
+				done();
+			}, 200);
 		});
 		it('should update the model when the document changes', function (done) {
 			b.getElementsByTagName('div')[0].innerHTML = 'hei';
@@ -244,8 +290,45 @@ define([
 	});
 
 	describe('Methods.ForEach', function () {
-		it('should loop through an array and print a list');
-		it('should render a new item, when a value is pushed into the array');
+		it('should loop through an array and print a list', function () {
+			var a = {
+					list: [{
+						text: 1
+					},{
+						text: 2
+					}]
+				},
+				b = document.createElement('div'),
+				c = '<ul data-method="forEach: list"><li data-method="text:text"></li></ul>';
+
+			c2 = new Context(a);
+			c2.addTemplate(c);
+			c2.renderTo(b);
+			expect(b.getElementsByTagName('li').length).to.equal(2);
+		});
+		it('should render a new item, when a value is pushed into the array', function (done) {
+			var a = {
+					list: [{
+						text2: 1
+					},{
+						text2: 2
+					}]
+				},
+				b = document.createElement('div'),
+				c = '<ul data-method="forEach: list"><li data-method="text2:text"></li></ul>';
+
+			c2 = new Context(a);
+			c2.addTemplate(c);
+			c2.renderTo(b);
+			c2.model.list.push({
+				text2: 3
+			});
+
+			setTimeout(function () {
+				expect(b.getElementsByTagName('li').length).to.equal(3);
+				done();
+			}, 500);
+		});
 		it('should delete the corresponding element when an entry is removed from the array');
 		it('should run nested bindings');
 		it('should sort the rendered markup when the array is sorted');
@@ -265,7 +348,7 @@ define([
 				b = document.createElement('div'),
 				c = '<a data-method="attr: {href: href}"></a>';
 
-			c2 = new Context(a);
+			var c2 = new Context(a);
 			c2.addTemplate(c);
 			c2.renderTo(b);
 			expect(b.getElementsByTagName('a')[0].getAttribute('href')).to.equal('#');
