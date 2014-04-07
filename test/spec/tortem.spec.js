@@ -95,7 +95,7 @@ define([
 		it('should fire a callback when a value is pushed on an array', function (done) {
 			var a = [];
 			objObserver(a, function (prop, val) {
-				if (val === 'test' && prop === 0) {
+				if (val[prop] === 'test' && prop === 0) {
 					done();
 				} else {
 					done(new Error());
@@ -115,6 +115,40 @@ define([
 			});
 			a.pop();
 		});
+
+		it('should fire a callback when a value is spliced off an array', function (done) {
+			var a = [1,2,3];
+			objObserver(a, function (prop, val) {
+				if (prop === 1) {
+					done();
+				} else {
+					done(new Error());
+				}
+			});
+			a.splice(1,1);
+		});
+
+		/*it('should fire a callback when array is sorted, but not when a value is updated', function (done) {
+			var a = [3, 1,2,4];
+			objObserver(a, function (prop, val) {
+				console.log(prop);
+				console.log(val);
+				done();
+			});
+			var b = a[0];
+			Object.defineProperty(a, 0, {
+				set: function(val) {
+					console.log('set');
+					b = val;
+				},
+				get: function() {
+					return b;
+				}
+			});
+			a[0] = '5';
+			setTimeout(function () {console.log('sort');a.sort();}, 15);
+
+		});*/
 
 		it('should fire a callback when a property is added to an object', function (done) {
 			var a = {};
@@ -327,11 +361,84 @@ define([
 			setTimeout(function () {
 				expect(b.getElementsByTagName('li').length).to.equal(3);
 				done();
-			}, 500);
+			}, 200);
 		});
-		it('should delete the corresponding element when an entry is removed from the array');
+		it('should delete the corresponding element when an entry is removed from the array', function (done) {
+			var a = {
+					list: [{
+						text2: 1
+					},{
+						text2: 2
+					}]
+				},
+				b = document.createElement('div'),
+				c = '<ul data-method="forEach: list"><li data-method="text2:text"></li></ul>';
+
+			c2 = new Context(a);
+			c2.addTemplate(c);
+			c2.renderTo(b);
+			c2.model.list.pop();
+
+			setTimeout(function () {
+				expect(b.getElementsByTagName('li').length).to.equal(1);
+				done();
+			}, 200);
+		});
+		it('should change the element when an index is changed', function (done) {
+			var c2,a = {
+					list: [{
+						text2: 1
+					},{
+						text2: 2
+					}]
+				},
+				b = document.createElement('div'),
+				c = '<ul data-method="forEach: list"><li data-method="text2:text"></li></ul>';
+
+			c2 = new Context(a);
+			c2.addTemplate(c);
+			c2.renderTo(b);
+			c2.model.list[0] = {
+				text2:3
+			};
+			console.log(b);
+			setTimeout(function () {
+				expect(b.getElementsByTagName('li')[0].innerHTML).to.equal('3');
+				done();
+			}, 200);
+		});
+
 		it('should run nested bindings');
-		it('should sort the rendered markup when the array is sorted');
+		it('should sort the rendered markup when the array is sorted', function (done) {
+			console.log('-- start sort --');
+			var a = {
+					list: [{
+						text2: 3
+					},{
+						text2: 1
+					},{
+						text2: 2
+					}]
+				},
+				b = document.createElement('div'),
+				c = '<ul data-method="forEach: list"><li data-method="text:text2"></li></ul>',
+				c2;
+
+			c2 = new Context(a);
+			c2.addTemplate(c);
+			c2.renderTo(b);
+
+			c2.model.list.sort(function(a,b) {
+				return a.text2-b.text2;
+			});
+
+			setTimeout(function () {
+				console.log(b);
+				console.log(c2.model.list);
+				expect(b.getElementsByTagName('li')[0].innerHTML).to.equal('1');
+				done();
+			}, 200);
+		});
 	});
 
 	describe('Methods.If', function () {
