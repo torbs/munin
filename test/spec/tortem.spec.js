@@ -93,12 +93,12 @@ define([
 
 	describe('objectObserver', function () {
 		it('should fire a callback when a value is pushed on an array', function (done) {
-			var a = [];
+			var a = [1,2,3];
 			objObserver(a, function (prop, val) {
-				if (val[prop] === 'test' && prop === 0) {
+				if (val === 'test' && prop === 3) {
 					done();
 				} else {
-					done(new Error());
+					done(new Error('prop: "' + prop + '" is not "3" or value: "'+ val + '" is not "test"' ));
 				}
 			});
 			a.push('test');
@@ -107,9 +107,10 @@ define([
 		it('should fire a callback when a value is popped off an array', function (done) {
 			var a = [1,2];
 			objObserver(a, function (prop, val) {
-				if (prop === 1) {
+				if (prop === 1 && val === 2) {
 					done();
 				} else {
+					console.log(val);
 					done(new Error());
 				}
 			});
@@ -119,13 +120,25 @@ define([
 		it('should fire a callback when a value is spliced off an array', function (done) {
 			var a = [1,2,3];
 			objObserver(a, function (prop, val) {
-				if (prop === 1) {
+				if (prop === 1 && val === 2) {
 					done();
 				} else {
 					done(new Error());
 				}
 			});
 			a.splice(1,1);
+		});
+
+		it('should fire a callback when a value is replaced in the array', function (done) {
+			var a = [1,2,3];
+			objObserver(a, function (prop, val) {
+				if (prop === 1 && val === 5) {
+					done();
+				} else {
+					done(new Error('prop: "' + prop + '" is not "1" or value: "'+ val + '" is not "5"' ));
+				}
+			});
+			a[1] = 5;
 		});
 
 		/*it('should fire a callback when array is sorted, but not when a value is updated', function (done) {
@@ -236,35 +249,59 @@ define([
 	});
 
 	describe('Methods.Text', function () {
-		var a = {
+		it('should render a template', function() {
+			var a = {
 					test: 'test'
 				},
 				b = document.createElement('div'),
-				c = '<div id="contextTest" data-method="text:test"></div>';
+				c = '<div id="contextTest" data-method="text:test"></div>',
+				c2;
 
-		it('should render a template', function(done) {
 			c2 = new Context(a);
 			c2.addTemplate(c);
 			c2.renderTo(b);
 			
-			setTimeout(function () {
-				expect(b.getElementsByTagName('div')[0].innerHTML).to.equal('test');
-				done();
-			}, 200);
+			expect(b.getElementsByTagName('div')[0].innerHTML).to.equal('test');
 		});
 		it('should change the content of the element when the model changes', function (done) {
+			var a = {
+					test: 'test'
+				},
+				b = document.createElement('div'),
+				c = '<div id="contextTest" data-method="text:test"></div>',
+				c2;
+
+			c2 = new Context(a);
+			c2.addTemplate(c);
+			c2.renderTo(b);
+
 			c2.model.test = 'test2';
-			setTimeout(function () {
+
+			c2.on('change', '/test', function () {
 				expect(b.getElementsByTagName('div')[0].innerHTML).to.equal('test2');
 				done();
-			}, 200);
+			});
 		});
 		it('should update the model when the document changes', function (done) {
-			b.getElementsByTagName('div')[0].innerHTML = 'hei';
-			setTimeout(function () {
+			var a = {
+					test: 'test'
+				},
+				b = document.createElement('div'),
+				c = '<div id="contextTest" data-method="text:test"></div>',
+				c2;
+
+			c2 = new Context(a);
+			c2.addTemplate(c);
+			c2.renderTo(b);
+
+			c2.on('change', '/test', function () {
 				expect(c2.model.test).to.equal('hei');
 				done();
-			}, 300);
+			});
+
+			setTimeout(function () {
+				b.getElementsByTagName('div')[0].innerHTML = 'hei';
+			}, 15);
 		});
 		it('should display the result of an expression', function () {
 			var a = {
@@ -315,11 +352,13 @@ define([
 			c2 = new Context(a);
 			c2.addTemplate(c);
 			c2.renderTo(b);
-			c2.model.text7 = 'missing';
-			setTimeout(function () {
+
+			c2.on('change', '/text7', function () {
 				expect(b.getElementsByTagName('div')[0].innerHTML).to.equal('missing text');
 				done();
-			}, 250);
+			});
+
+			c2.model.text7 = 'missing';
 		});
 	});
 
@@ -354,14 +393,14 @@ define([
 			c2 = new Context(a);
 			c2.addTemplate(c);
 			c2.renderTo(b);
+
+			c2.on('add', '/list/[]', function () {
+				expect(b.getElementsByTagName('li').length).to.equal(3);
+				done();
+			});
 			c2.model.list.push({
 				text2: 3
 			});
-
-			setTimeout(function () {
-				expect(b.getElementsByTagName('li').length).to.equal(3);
-				done();
-			}, 200);
 		});
 		it('should delete the corresponding element when an entry is removed from the array', function (done) {
 			var a = {
@@ -379,10 +418,10 @@ define([
 			c2.renderTo(b);
 			c2.model.list.pop();
 
-			setTimeout(function () {
+			c2.on('remove', '/list/1', function (data) {
 				expect(b.getElementsByTagName('li').length).to.equal(1);
 				done();
-			}, 200);
+			});
 		});
 		it('should change the element when an index is changed', function (done) {
 			var c2,a = {
@@ -393,24 +432,22 @@ define([
 					}]
 				},
 				b = document.createElement('div'),
-				c = '<ul data-method="forEach: list"><li data-method="text2:text"></li></ul>';
+				c = '<ul data-method="forEach: list"><li data-method="text: text2"></li></ul>';
 
 			c2 = new Context(a);
 			c2.addTemplate(c);
 			c2.renderTo(b);
-			c2.model.list[0] = {
-				text2:3
-			};
-			console.log(b);
-			setTimeout(function () {
-				expect(b.getElementsByTagName('li')[0].innerHTML).to.equal('3');
+
+			c2.on('change', '/list/0', function() {
+				expect(b.getElementsByTagName('li')[0].innerHTML).to.equal('5');
 				done();
-			}, 200);
+			});
+			c2.model.list[0] = {
+				text2:5
+			};
 		});
 
-		it('should run nested bindings');
 		it('should sort the rendered markup when the array is sorted', function (done) {
-			console.log('-- start sort --');
 			var a = {
 					list: [{
 						text2: 3
@@ -421,30 +458,115 @@ define([
 					}]
 				},
 				b = document.createElement('div'),
-				c = '<ul data-method="forEach: list"><li data-method="text:text2"></li></ul>',
+				c = '<ul data-method="forEach: list" id="list"><li data-method="text: text2"></li></ul>',
 				c2;
 
 			c2 = new Context(a);
 			c2.addTemplate(c);
 			c2.renderTo(b);
+			
+			var d = b.querySelector('#list');
+
+			// TODO change event when children is changed
+			setTimeout(function () {
+				expect(b.getElementsByTagName('li')[0].innerHTML).to.equal('1');
+				done();
+			}, 15);
 
 			c2.model.list.sort(function(a,b) {
 				return a.text2-b.text2;
 			});
-
-			setTimeout(function () {
-				console.log(b);
-				console.log(c2.model.list);
-				expect(b.getElementsByTagName('li')[0].innerHTML).to.equal('1');
-				done();
-			}, 200);
 		});
 	});
 
-	describe('Methods.If', function () {
-		it('should parse children based on the result of a conditional');
-		it('should solve a conditional consisting of model properties');
-		it('should run a function passed as a conditional and parse children when the conditional is true');
+	describe('Methods.Test', function () {
+		it('should parse children based on the result of a conditional', function () {
+			var a = {
+				cond: true,
+				cond2: false
+				},
+				b = document.createElement('div'),
+				c = '<div data-method="test: cond"><span></span></div><div data-method="test: cond2"><span></span></div>',
+				c2;
+
+			c2 = new Context(a);
+			c2.addTemplate(c);
+			c2.renderTo(b);
+			expect(b.getElementsByTagName('span').length).to.equal(1);
+		});
+		it('should solve a conditional consisting of model properties', function () {
+			var a = {
+				cond: true,
+				cond2: false
+				},
+				b = document.createElement('div'),
+				c = '<div data-method="test: cond === true"><span></span></div>' +
+					'<div data-method="test: cond === false"><span></span></div>' +
+					'<div data-method="test: cond2 === false"><span></span></div>' +
+					'<div data-method="test: cond2 !== false"><span></span></div>',
+				c2;
+
+			c2 = new Context(a);
+			c2.addTemplate(c);
+			c2.renderTo(b);
+			expect(b.getElementsByTagName('span').length).to.equal(2);
+		});
+		it('should run a function passed as a conditional and parse children when the conditional is true', function () {
+			var a = {
+				cond: function () {return true;},
+				cond2: function () {return false;}
+				},
+				b = document.createElement('div'),
+				c = '<div data-method="test: cond() === true"><span></span></div>' +
+					'<div data-method="test: cond() === false"><span></span></div>' +
+					'<div data-method="test: cond2() === false"><span></span></div>' +
+					'<div data-method="test: cond2() !== false"><span></span></div>',
+				c2;
+
+			c2 = new Context(a);
+			c2.addTemplate(c);
+			c2.renderTo(b);
+			expect(b.getElementsByTagName('span').length).to.equal(2);
+		});
+		it('should reevaluate a conditional when an involved property changes in the model', function (done) {
+			var a = {
+				cond: true,
+				},
+				b = document.createElement('div'),
+				c = '<div data-method="test: cond === true"><span></span></div>',
+				c2;
+
+			c2 = new Context(a);
+			c2.addTemplate(c);
+			c2.renderTo(b);
+			c2.on('change', '/cond', function () {
+				expect(b.getElementsByTagName('span').length).to.equal(0);
+				done();
+			});
+			expect(b.getElementsByTagName('span').length).to.equal(1);
+			c2.model.cond = false;
+		});
+		it('should reevaluate a conditional when an element changes and this triggers a model change', function () {
+			var a = {
+				cond: 'hei',
+				},
+				b = document.createElement('div'),
+				c = '<div id="test" data-method="text: cond"></div><div data-method="test: cond === \'hei\'"><span></span></div>',
+				c2;
+
+			c2 = new Context(a);
+			c2.addTemplate(c);
+			console.log('-----)');
+			c2.renderTo(b);
+
+			c2.on('change', '/cond', function () {
+				console.log(b);
+				expect(b.getElementsByTagName('span').length).to.equal(0);
+				done();
+			});
+			expect(b.getElementsByTagName('span').length).to.equal(1);
+			b.getElementById('test').innerHTML = 'sann';
+		});
 	});
 
 	describe('Methods.Attr', function () {
@@ -509,6 +631,7 @@ define([
 			var test = b.getElementsByTagName('p')[0].getAttribute('class');
 			expect(test).to.equal('test1');
 		});
+		it('should change the model when an attribute is updated');
 	});
 
 	describe('Methods.Template', function () {
