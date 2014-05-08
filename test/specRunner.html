@@ -2,6 +2,7 @@
 <html>
 	<head>
 		<title>Munin tests</title>
+		<meta http-equiv="Content-Type" content="text/html; charset=UTF-8" />
 		<link rel="stylesheet" href="../lib/external/mocha.css"/>
 	</head>
 	<body>
@@ -17,7 +18,7 @@
 		<script type="text/javascript" src="../lib/external/requirejs/require.js"></script>
 		
 		<script type="text/javascript">
-			mocha.setup('bdd');
+			mocha.setup({ui:'bdd'});
 
 			//window.expect = chai.expect;    
 			//window.assert = chai.assert; 

@@ -1,5 +1,6 @@
 define([
 	'../../lib/tortem/tokenizer',
+	'../../lib/tortem/hostobjects',
 	'../../lib/tortem/objObserver',
 	'../../lib/tortem/context2',
 	'../../lib/tortem/jsonpath',
@@ -8,12 +9,11 @@ define([
 	'../../lib/tortem',
 	'../../lib/tortem/ietortem',
 	'../../lib/tortem/loglevel'
-], function (Tokenizer, objObserver, Context, jsonpath, addPolyfills, model, Tortem, IETortem, log) {
+], function (Tokenizer, Hostobjects, objObserver, Context, jsonpath, addPolyfills, model, Tortem, IETortem, log) {
 	'use strict';
 	var tortem;
-
 	var template = '<div>test</div>';
-
+	
 	log.setLevel('trace');
 
 	addPolyfills(Array);
@@ -93,7 +93,9 @@ define([
 
 	describe('objectObserver', function () {
 		it('should fire a callback when a value is pushed on an array', function (done) {
-			var a = [1,2,3];
+			var hObj = new Hostobjects();
+			var a = new hObj.Array(1,2,3);
+			
 			objObserver(a, function (prop, val) {
 				if (val === 'test' && prop === 3) {
 					done();
@@ -105,21 +107,23 @@ define([
 		});
 
 		it('should fire a callback when a value is popped off an array', function (done) {
-			var a = [1,2];
+			var hObj = new Hostobjects();
+			var a = new hObj.Array(1,2);
 			objObserver(a, function (prop, val) {
 				if (prop === 1 && val === 2) {
 					done();
 				} else {
-					console.log(val);
-					done(new Error());
+					done(new Error('prop: "' + prop + '" is not "1" or value: "'+ val + '" is not "2"' ));
 				}
 			});
 			a.pop();
 		});
 
 		it('should fire a callback when a value is spliced off an array', function (done) {
-			var a = [1,2,3];
-			objObserver(a, function (prop, val) {
+			var hObj = new Hostobjects();
+			var a = new hObj.Array(1,2,3);
+
+			objObserver(a, function (prop, val, type) {
 				if (prop === 1 && val === 2) {
 					done();
 				} else {
@@ -129,6 +133,19 @@ define([
 			a.splice(1,1);
 		});
 
+		it('should fire a callback when a value is spliced on an array', function (done) {
+			var hObj = new Hostobjects();
+			var a = new hObj.Array(1,2,3,4,5);
+			
+			objObserver(a, function (prop, val, type) {
+				if (type=== 'add' && prop === 1 && val === 6) {
+					done();
+				}
+			});
+			a.splice(1,1,6);
+		});
+
+		/*
 		it('should fire a callback when a value is replaced in the array', function (done) {
 			var a = [1,2,3];
 			objObserver(a, function (prop, val) {
@@ -140,6 +157,7 @@ define([
 			});
 			a[1] = 5;
 		});
+		*/
 
 		/*it('should fire a callback when array is sorted, but not when a value is updated', function (done) {
 			var a = [3, 1,2,4];
@@ -162,18 +180,6 @@ define([
 			setTimeout(function () {console.log('sort');a.sort();}, 15);
 
 		});*/
-
-		it('should fire a callback when a property is added to an object', function (done) {
-			var a = {};
-			objObserver(a, function (prop, value) {
-				if (prop === 'test' && value === true) {
-					done();
-				} else {
-					done(new Error());
-				}
-			});
-			a.test = true;
-		});
 	});
 
 	describe('JSONPath', function () {
@@ -379,7 +385,9 @@ define([
 			c2.renderTo(b);
 			expect(b.getElementsByTagName('li').length).to.equal(2);
 		});
+
 		it('should render a new item, when a value is pushed into the array', function (done) {
+			console.log('START')
 			var a = {
 					list: [{
 						text2: 1
@@ -389,7 +397,7 @@ define([
 				},
 				b = document.createElement('div'),
 				c = '<ul data-method="forEach: list"><li data-method="text2:text"></li></ul>';
-
+			
 			c2 = new Context(a);
 			c2.addTemplate(c);
 			c2.renderTo(b);
@@ -556,16 +564,15 @@ define([
 
 			c2 = new Context(a);
 			c2.addTemplate(c);
-			console.log('-----)');
 			c2.renderTo(b);
 
 			c2.on('change', '/cond', function () {
-				console.log(b);
+				console.log(b, 'HERER');
 				expect(b.getElementsByTagName('span').length).to.equal(0);
 				done();
 			});
 			expect(b.getElementsByTagName('span').length).to.equal(1);
-			b.getElementById('test').innerHTML = 'sann';
+			b.getElementsByTagName('div')[0].innerHTML = 'sann';
 		});
 	});
 
