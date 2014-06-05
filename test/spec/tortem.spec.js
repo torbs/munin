@@ -1,18 +1,19 @@
 define([
+	'../../lib/tortem/expression',
 	'../../lib/tortem/tokenizer',
 	'../../lib/tortem/hostobjects',
 	'../../lib/tortem/objObserver',
 	'../../lib/tortem/context2',
 	'../../lib/tortem/jsonpath',
 	'../../lib/polyfills/arrayPolyfills',
-	'../../lib/tortem/model',
-	'../../lib/tortem',
-	'../../lib/tortem/ietortem',
 	'../../lib/tortem/loglevel'
-], function (Tokenizer, Hostobjects, objObserver, Context, jsonpath, addPolyfills, model, Tortem, IETortem, log) {
+], function (expression, Tokenizer, Hostobjects, objObserver, Context, jsonpath, addPolyfills, log) {
 	'use strict';
 	var tortem;
 	var template = '<div>test</div>';
+window.onerror= function() {
+	console.log(arguments);
+}
 	
 	log.setLevel('trace');
 
@@ -91,6 +92,19 @@ define([
 	});
 */
 
+	/*describe('parseExpression', function () {
+		it('should parse an object literal', function() {
+			console.log(expression.parseObjectLiteral('{key:value}'));
+		});
+		it('should parse an nested object literal', function() {
+			console.log(expression.parseObjectLiteral('{key:{key2:value}}'));
+		});
+		it('should parse an concatination', function() {
+			console.log(expression.parseObjectLiteral('myVar + "test"'));
+		});
+	});
+*/
+
 	describe('objectObserver', function () {
 		it('should fire a callback when a value is pushed on an array', function (done) {
 			var hObj = new Hostobjects();
@@ -144,42 +158,6 @@ define([
 			});
 			a.splice(1,1,6);
 		});
-
-		/*
-		it('should fire a callback when a value is replaced in the array', function (done) {
-			var a = [1,2,3];
-			objObserver(a, function (prop, val) {
-				if (prop === 1 && val === 5) {
-					done();
-				} else {
-					done(new Error('prop: "' + prop + '" is not "1" or value: "'+ val + '" is not "5"' ));
-				}
-			});
-			a[1] = 5;
-		});
-		*/
-
-		/*it('should fire a callback when array is sorted, but not when a value is updated', function (done) {
-			var a = [3, 1,2,4];
-			objObserver(a, function (prop, val) {
-				console.log(prop);
-				console.log(val);
-				done();
-			});
-			var b = a[0];
-			Object.defineProperty(a, 0, {
-				set: function(val) {
-					console.log('set');
-					b = val;
-				},
-				get: function() {
-					return b;
-				}
-			});
-			a[0] = '5';
-			setTimeout(function () {console.log('sort');a.sort();}, 15);
-
-		});*/
 	});
 
 	describe('JSONPath', function () {
@@ -225,7 +203,19 @@ define([
 			expect(c2.addTemplate(document.createElement('div')).toString()).to.equal('Context');
 			expect(c2.addTemplate({main: document.createElement('div')}).toString()).to.equal('Context');
 		});
-		it('should reparse a parsed template if the template is replaced');
+		it('should reparse a parsed template if the template is replaced', function () {
+			var model = {test: 'test'},
+				t1 = '<div data-method="text: test"></div>',
+				t2 = '<div data-method="attr: {\'data-test\':test}"></div>',
+				target = document.createElement('div'),
+				c2 = new Context(model);
+
+			c2.addTemplate(t1);
+			c2.renderTo(target);
+			c2.addTemplate(t2);
+			expect(target.getElementsByTagName('div').length).to.equal(1);
+			expect(target.getElementsByTagName('div')[0].getAttribute('data-test')).to.equal('test');
+		});
 	});
 
 	describe('Context.prototype.getTemplates', function () {
@@ -238,9 +228,43 @@ define([
 		it('should throw an error if it is used with wrong an argument', function () {
 			expect(function () {c2.renderTo();}).to.throwException('Expected node as first argument');
 		});
-		it('should render a template written in markup');
-		it('should render to a fragment');
-		it('should not render to already rendered elements');
+		it('should render a template written in markup', function() {
+			var model = {test: 'markup'},
+				el = document.createElement('div'),
+				c2 = new Context(model);
+
+			el.setAttribute('data-method', 'text: test');
+			document.body.appendChild(el);
+			c2.render(el);
+			expect(el.innerHTML).to.equal('markup');
+			document.body.removeChild(el);
+		});
+		it('should render to a fragment', function () {
+			var model = {test: 'markup'},
+				fragment = document.createElement('div'),
+				template = '<div data-method="text: test"></div>',
+				c2 = new Context(model);
+
+			c2.addTemplate(template);
+			c2.renderTo(fragment);
+
+			expect(fragment.childNodes[0].innerHTML).to.equal('markup');
+		});
+		it('should not render to already rendered elements', function() {
+			var model = {test: 'markup'},
+				model2 = {test: 'markup2'},
+				el = document.createElement('div'),
+				c2 = new Context(model),
+				c3 = new Context(model2);
+
+			el.setAttribute('data-method', 'text: test');
+			document.body.appendChild(el);
+
+			c2.render(el);
+			c3.render(el);
+			expect(el.innerHTML).to.equal('markup');
+			document.body.removeChild(el);
+		});
 	});
 
 	describe('Methods', function () {
@@ -366,6 +390,20 @@ define([
 
 			c2.model.text7 = 'missing';
 		});
+		it('should support usage as a kontxt-text tag', function () {
+			var a = {
+					test: 'test'
+				},
+				b = document.createElement('div'),
+				c = '<div id="contextTest"><kontxt-text remove="true" value="test" /></div>',
+				c2;
+
+			c2 = new Context(a);
+			c2.addTemplate(c);
+			c2.renderTo(b);
+			
+			expect(b.getElementsByTagName('div')[0].innerHTML).to.equal('test');
+		});
 	});
 
 	describe('Methods.ForEach', function () {
@@ -378,7 +416,7 @@ define([
 					}]
 				},
 				b = document.createElement('div'),
-				c = '<ul data-method="forEach: list"><li data-method="text:text"></li></ul>';
+				c = '<ul data-method="foreach: list"><li data-method="text:text"></li></ul>';
 
 			c2 = new Context(a);
 			c2.addTemplate(c);
@@ -387,7 +425,6 @@ define([
 		});
 
 		it('should render a new item, when a value is pushed into the array', function (done) {
-			console.log('START')
 			var a = {
 					list: [{
 						text2: 1
@@ -396,19 +433,20 @@ define([
 					}]
 				},
 				b = document.createElement('div'),
-				c = '<ul data-method="forEach: list"><li data-method="text2:text"></li></ul>';
-			
+				c = '<ul data-method="foreach: list"><li data-method="text2:text"></li></ul>';
 			c2 = new Context(a);
 			c2.addTemplate(c);
 			c2.renderTo(b);
-
+			
 			c2.on('add', '/list/[]', function () {
 				expect(b.getElementsByTagName('li').length).to.equal(3);
 				done();
 			});
+			window.test = true;
 			c2.model.list.push({
 				text2: 3
 			});
+			window.test = false;
 		});
 		it('should delete the corresponding element when an entry is removed from the array', function (done) {
 			var a = {
@@ -419,7 +457,7 @@ define([
 					}]
 				},
 				b = document.createElement('div'),
-				c = '<ul data-method="forEach: list"><li data-method="text2:text"></li></ul>';
+				c = '<ul data-method="foreach: list"><li data-method="text2:text"></li></ul>';
 
 			c2 = new Context(a);
 			c2.addTemplate(c);
@@ -440,7 +478,7 @@ define([
 					}]
 				},
 				b = document.createElement('div'),
-				c = '<ul data-method="forEach: list"><li data-method="text: text2"></li></ul>';
+				c = '<ul data-method="foreach: list"><li data-method="text: text2"></li></ul>';
 
 			c2 = new Context(a);
 			c2.addTemplate(c);
@@ -450,6 +488,7 @@ define([
 				expect(b.getElementsByTagName('li')[0].innerHTML).to.equal('5');
 				done();
 			});
+			
 			c2.model.list[0] = {
 				text2:5
 			};
@@ -466,7 +505,7 @@ define([
 					}]
 				},
 				b = document.createElement('div'),
-				c = '<ul data-method="forEach: list" id="list"><li data-method="text: text2"></li></ul>',
+				c = '<ul data-method="foreach: list" id="list"><li data-method="text: text2"></li></ul>',
 				c2;
 
 			c2 = new Context(a);
@@ -554,7 +593,7 @@ define([
 			expect(b.getElementsByTagName('span').length).to.equal(1);
 			c2.model.cond = false;
 		});
-		it('should reevaluate a conditional when an element changes and this triggers a model change', function () {
+		it('should reevaluate a conditional when an element changes and this triggers a model change', function (done) {
 			var a = {
 				cond: 'hei',
 				},
@@ -567,12 +606,13 @@ define([
 			c2.renderTo(b);
 
 			c2.on('change', '/cond', function () {
-				console.log(b, 'HERER');
 				expect(b.getElementsByTagName('span').length).to.equal(0);
 				done();
 			});
 			expect(b.getElementsByTagName('span').length).to.equal(1);
-			b.getElementsByTagName('div')[0].innerHTML = 'sann';
+			setTimeout(function() {
+				b.getElementsByTagName('div')[0].innerHTML = 'sann';
+			},0);
 		});
 	});
 
@@ -638,175 +678,74 @@ define([
 			var test = b.getElementsByTagName('p')[0].getAttribute('class');
 			expect(test).to.equal('test1');
 		});
-		it('should change the model when an attribute is updated');
+		it('should change the model when an attribute is updated', function(done) {
+			var model = {
+				'klass': 'test'
+			},
+			target = document.createElement('div'),
+			temp = '<span data-method="attr: {\'class\': klass}"></span>',
+			c2 = new Context(model);
+			c2.addTemplate(temp);
+			c2.renderTo(target);
+
+			c2.on('change', '/klass', function () {
+				expect(c2.model.klass).to.equal('changed');
+				done();
+			});
+			setTimeout(function () {
+				target.getElementsByTagName('span')[0].setAttribute('class', 'changed');
+			},15);
+		});
 	});
 
 	describe('Methods.Template', function () {
-		it('should render a named template');
-		it('should update the document when the model is changed');
-		it('should update the model when the document is changed');
-		it('should not render the template if the property is missing');
-		it('should render the template when the property is added to the model');
-	});
-
-	describe('Template element', function () {
-		it('should not be added to the rendered markup');
-		it('should parse bindings');
-		it('should update the document when the model is changed');
-		it('should update the model when the document is changed');
-	});
-	/*
-	describe('model', function () {
-		it('should create a setter that will be run on each new element in an array', function () {
-			var m = model([1,2,3]);
-			m.push(4);
-			expect(m[3]).to.equal(4);
-		});
-	});
-
-	describe('tortem', function () {
-		var methods = ['apply','addElement','removeElements','addTemplate','removeTemplate'];
-		it('should be a constructor', function () {
-			expect(typeof Tortem).to.equal('function');
-		});
-		it('should create an object', function () {
-			tortem = new Tortem();
-			expect(typeof tortem).to.equal('object');
-		});
-		function _methodTest(method) {
-			it('should have an '+method+' method', function () {
-				expect(typeof tortem[method]).to.equal('function');
-			});
+		it('should render a named template', function () {
+			var model = {
+					'test': 'test'
+				},
+				target = document.createElement('div'),
+				myTemp = '<span data-method="text:test"></span>',
+				temp = '<div data-method="template:\'myTemp\'"></div>',
+				c2 = new Context(model);
 			
-		}
-		for (var i = 0, l = methods.length; i<l; i++) {
-			_methodTest(methods[i]);
-		}
-		
-	});
-	
-	describe('tortem.addElement', function () {
-		it('should take an DOM node as only argument', function () {
-			expect(function () {
-				tortem.addElement(document.createElement('div'), true);
-			}).to.throwException('"addElement" requires and accepts only one argument');
-		});
-		it('should chain', function () {
-			expect(tortem.addElement(document.createElement('div')).toString()).to.equal('Tortem');
-		});
-		it('should take an array of elements as argument', function () {
-			expect(tortem.addElement([document.createElement('div'), document.createElement('div')]).getElements().length).to.equal(3);
-		});
-	});
-
-	describe('tortem.getElements', function () {
-		it('should return elements', function () {
-			expect(tortem.getElements().length).not.to.equal(0);
-			expect(tortem.getElements()[0].nodeType).to.equal(1);
-		});
-	});
-
-	describe('tortem.removeElements', function () {
-		it('should remove an element specified in argument', function () {
-			var el = document.createElement('div');
-			tortem.addElement(el);
-			expect(tortem.getElements().length).to.equal(4);
-			expect(tortem.removeElements(el)).to.equal(el);
-			expect(tortem.getElements().length).to.equal(3);
-		});
-		it('should remove all elements when used without arguments', function () {
-			tortem.removeElements();
-			expect(tortem.getElements()).to.equal(null);
-		});
-	});
-
-	describe('tortem.addTemplate', function () {
-		it('should take a string as argument', function () {
-			tortem.addTemplate('<div></div>');
-			expect(_isNode(tortem._template.main)).to.equal(true);
-		});
-		it('should take a node as argument', function () {
-			tortem.addTemplate(document.createElement('div'));
-			expect(_isElement(tortem._template.main)).to.equal(true);
-		});
-		it('should add a partial template', function() {
-			tortem.addTemplate({
-				part1: '<div></div>'
+			c2.addTemplate({
+				myTemp: myTemp,
+				main: temp
 			});
-			expect(_isNode(tortem._template.part1)).to.equal(true);
-		});
-		it('should chain', function () {
-			expect(tortem.addTemplate('<div></div>').toString()).to.equal('Tortem');
-		});
+			c2.renderTo(target);
 
-	});
-
-	describe('tortem.apply', function () {
-		it('should take an optional container element', function () {
-			expect(function() {
-				tortem.apply(document.createElement('div'));
-			}).not.to.throwException('Invalid argument. Expected an element');
-			expect(function () {
-				tortem.apply(true);
-			}).to.throwException('Invalid argument. Expected an element');
+			expect(target.getElementsByTagName('span').length).to.equal(1);
+			expect(target.getElementsByTagName('span')[0].innerHTML).to.equal('test');
 		});
-		it('should chain', function () {
-			expect(tortem.apply(document.createElement('div')).toString()).to.equal('Tortem');
-		});
-		it('should append the template to the container and parse it', function () {
-			var output = document.getElementById('output'),
-				obj = {
-					a: 'test'
-				};
-
-			tortem = new Tortem(obj);
-			tortem.addTemplate('<div id="removeThis" data-tortem="text:a"></div><div id="notThis" data-tortem="text:a"></div>');
-			tortem.apply(output);
-
-			expect(output.getElementsByTagName('div').length).to.equal(2);
-			expect(output.getElementsByTagName('div')[1].innerHTML).to.equal('test');
+		it('should render a template stored in a variable and change the template when the variable changes', function(done) {
+			var model = {
+					'template': 'myTemp',
+					'test': 'test'
+				},
+				target = document.createElement('div'),
+				myTemp = '<span data-method="text:test"></span>',
+				myTemp2 = '<div data-method="text:test"></div>',
+				temp = '<div data-method="template:template"></div>',
+				c2 = new Context(model);
 			
-			var el = document.getElementById('removeThis');
-			el = el.parentNode.removeChild(el);
-			tortem.model.a = 'test2';
-			expect(output.getElementsByTagName('div')[0].innerHTML).to.equal('test2');
-		});
+			c2.addTemplate({
+				myTemp: myTemp,
+				myTemp2: myTemp2,
+				main: temp
+			});
+			c2.renderTo(target);
 
-		it('should update the object when the DOM is updated', function (done) {
-			document.getElementById('notThis').innerHTML = 'hei';
-			setTimeout(function () {
-				expect(tortem.model.a).to.equal('hei');
+			expect(target.getElementsByTagName('span').length).to.equal(1);
+			expect(target.getElementsByTagName('span')[0].innerHTML).to.equal('test');
+			c2.on('change', '/template', function () {
+				expect(target.getElementsByTagName('span').length).to.equal(0);
+				expect(target.getElementsByTagName('div').length).to.equal(2);
+				expect(target.getElementsByTagName('div')[1].innerHTML).to.equal('test');
+				
 				done();
-			}, 1000);
-		});
+			});
 
-		it('should listen for a new property and display the result', function (done) {
-			tortem.addTemplate('<div id="newProp" data-tortem="text:b"></div>');
-			tortem.apply(output);
-			tortem.model.b = 'new property';
-			setTimeout(function () {
-				expect(document.getElementById('newProp').innerHTML).to.equal('new property');
-				done();
-			}, 500);
+			c2.model.template = 'myTemp2';
 		});
-		
-		it('should iterate through an array', function (done) {
-			tortem.model.c = [1,2,3];
-			tortem.addTemplate('<ul id="testList" data-tortem="forEach:c"><li data-tortem="text:$data"></li></ul>');
-			setTimeout(function () {
-				tortem.apply(output);
-				expect(document.getElementById('testList').childNodes.length).to.equal(3);
-				done();
-			}, 500);
-		});
-
-		it('should add a new element when we push a value on the array', function (done) {
-			tortem.model.c.push(4);
-			setTimeout(function () {
-				expect(document.getElementById('testList').childNodes.length).to.equal(4);
-				done();
-			},1050);
-		});
-		
-	});*/
+	});
 });

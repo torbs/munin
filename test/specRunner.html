@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html>
+<html xmlns:kontxt="http://www.multimodaldesign.com">
 	<head>
 		<title>Munin tests</title>
 		<meta http-equiv="Content-Type" content="text/html; charset=UTF-8" />
@@ -10,13 +10,14 @@
 		<div id="output"></div>
 
 		<script type="text/javascript" src="../lib/polyfills/es6.js"></script>
+		<script type="text/javascript" src="../lib/polyfills/stringPolyfills.js"></script>
 		<script type="text/javascript" src="../lib/polyfills/objectPolyfills.js"></script>
 		<script type="text/javascript" src="../lib/polyfills/promise.js"></script>
 		<script type="text/javascript" src="../lib/polyfills/setImmediate.js"></script>
 		<script type="text/javascript" src="../lib/external/mocha/mocha.js"></script>
 		<script type="text/javascript" src="../bower_components/expect/expect.js"></script>
 		<script type="text/javascript" src="../lib/external/requirejs/require.js"></script>
-		
+
 		<script type="text/javascript">
 			mocha.setup({ui:'bdd'});
 
