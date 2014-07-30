@@ -442,11 +442,10 @@ window.onerror= function() {
 				expect(b.getElementsByTagName('li').length).to.equal(3);
 				done();
 			});
-			window.test = true;
+			
 			c2.model.list.push({
 				text2: 3
 			});
-			window.test = false;
 		});
 		it('should delete the corresponding element when an entry is removed from the array', function (done) {
 			var a = {
